@@ -39,8 +39,7 @@
     -webkit-user-select: none; user-select: none;
     -webkit-touch-callout: none;
   }
-  input { -webkit-user-select: text; user-select: text; }   /* the number boxes must stay typeable */
-  button, input { touch-action: manipulation; }             /* quick taps never zoom the page */
+  button { touch-action: manipulation; }   /* quick taps never zoom the page */
   .layout {
     display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start;
     max-width: 1120px; margin: 0 auto;
@@ -75,20 +74,23 @@
   .digit-group small { font-size: .9rem; font-weight: 700; }
   .digit-group.h small { color: var(--hour); }
   .digit-group.m small { color: var(--minute); }
+  /* the numbers are not typed into: they change with ▲ ▼ or by swiping up and down on them */
   .digit {
-    width: 112px; height: 92px; padding: 0;
-    font: inherit; font-size: 64px; font-weight: 700; text-align: center;
+    display: flex; align-items: center; justify-content: center;
+    width: 112px; height: 92px; line-height: 1;
+    font-size: 64px; font-weight: 700;
     border: 4px solid; border-radius: 16px; background: #fff;
+    touch-action: none; cursor: ns-resize;
   }
-  .digit::placeholder { color: #c7cbd8; }
-  .digit:focus { outline: none; box-shadow: 0 0 0 4px rgba(29,111,216,.25); }
+  .digit:empty::before { content: "?"; color: #c7cbd8; }
+  .digit.swiping { box-shadow: 0 0 0 4px rgba(29,111,216,.25); }
   .digit.h { border-color: var(--hour); color: var(--hour); }
   .digit.m { border-color: var(--minute); color: var(--minute); }
-  .digit:read-only { background: #f5f6fa; }
+  body[data-mode="set"] .digit { background: #f5f6fa; cursor: default; }
   .colon { font-size: 64px; font-weight: 700; padding-bottom: 28px; }
   .step {
-    width: 72px; height: 40px; border: 0; border-radius: 10px; background: #eef1f8;
-    font-size: 18px; cursor: pointer; color: var(--ink);
+    width: 80px; height: 52px; border: 0; border-radius: 12px; background: #eef1f8;
+    font-size: 20px; cursor: pointer; color: var(--ink);
   }
   .step:hover { background: #dfe5f3; }
   .step:disabled { opacity: .3; cursor: default; }
@@ -110,8 +112,34 @@
   .quiz .result { text-align: center; font-size: 1.15rem; font-weight: 700; margin: 10px 0 4px; min-height: 1.4em; }
   .quiz .result.ok { color: var(--ok); }
   .quiz .result.bad { color: var(--bad); }
-  .score { text-align: center; font-size: 1.2rem; margin-top: 6px; color: var(--star); font-weight: 700; min-height: 1.4em; }
+  .score { text-align: center; font-size: 1.2rem; margin-top: 6px; color: var(--star); font-weight: 700; min-height: 1.4em; letter-spacing: 2px; }
+  .score .empty { filter: grayscale(1); opacity: .3; }   /* stars still to win */
+  .score .trophies { margin-left: 14px; letter-spacing: 0; }
   body[data-mode="free"] .quiz-only { display: none; }
+
+  /* the "You won!" screen after 5 stars */
+  .win {
+    position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(43,45,66,.45);
+  }
+  .win[hidden] { display: none; }
+  .win-card {
+    width: 100%; max-width: 340px; padding: 24px 28px; text-align: center;
+    background: var(--paper); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    animation: pop .4s ease-out;
+  }
+  .win-cup { font-size: 80px; line-height: 1; }
+  .win-card h2 { margin: 8px 0 4px; font-size: 2rem; }
+  .win-card p { margin: 0 0 8px; font-size: 1.1rem; }
+  .win-trophies { font-size: 1.6rem; margin-bottom: 16px; }
+  .win .big { font-size: 1.2rem; padding: 12px 26px; }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .confetti { position: fixed; top: -14px; z-index: 11; width: 10px; height: 14px; pointer-events: none; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .confetti { display: none; }
+    .win-card { animation: none; }
+  }
 
   /* iPad held upright: a big clock on top and the two cards side by side underneath, all on one screen */
   @media (orientation: portrait) and (min-width: 700px) {
@@ -138,13 +166,13 @@
 
     /* the time on one row: ▼ 10 ▲ : ▼ 20 ▲ */
     .digital { margin: 0; gap: 4px; }
-    .digit-group { display: grid; grid-template-areas: "down num up" ". label ."; align-items: center; gap: 2px 5px; }
+    .digit-group { display: grid; grid-template-areas: "down num up" ". label ."; align-items: center; gap: 2px 4px; }
     .digit-group .step[data-d="-1"] { grid-area: down; }
     .digit-group .step[data-d="1"] { grid-area: up; }
     .digit-group .digit { grid-area: num; }
     .digit-group small { grid-area: label; text-align: center; font-size: .8rem; }
-    .digit { width: 74px; height: 58px; font-size: 40px; border-width: 3px; border-radius: 12px; }
-    .step { width: 34px; height: 46px; font-size: 15px; }
+    .digit { width: 66px; height: 58px; font-size: 40px; border-width: 3px; border-radius: 12px; }
+    .step { width: 44px; height: 58px; font-size: 16px; }
     .colon { font-size: 40px; padding-bottom: 20px; }
 
     .quiz .prompt { font-size: 1rem; margin: 0 0 8px; }
@@ -163,9 +191,10 @@
   /* phone on its side: clock on the left, everything else on the right */
   @media (max-height: 500px) and (orientation: landscape) {
     .layout { flex-wrap: nowrap; align-items: center; gap: 16px; max-width: none; }
-    .clock-wrap { flex: none; max-width: 50%; width: calc(100vh - 16px); }
+    /* the clock takes what is left beside the 344px-wide row of numbers (plus the 16px gap) */
+    .clock-wrap { flex: none; max-width: none; width: min(calc(100vh - 16px), calc(100% - 360px)); }
     @supports (height: 100svh) {
-      .clock-wrap { width: calc(100svh - 16px); }
+      .clock-wrap { width: min(calc(100svh - 16px), calc(100% - 360px)); }
     }
     .panel { flex: 1 1 0; max-width: 440px; }
   }
@@ -183,14 +212,14 @@
       <div class="digital">
         <div class="digit-group h">
           <button class="step" data-t="hour" data-d="1" aria-label="Hour up">▲</button>
-          <input id="hourInput" class="digit h" inputmode="numeric" maxlength="2" placeholder="?" aria-label="Hours">
+          <div id="hourBox" class="digit h" aria-label="Hours"></div>
           <button class="step" data-t="hour" data-d="-1" aria-label="Hour down">▼</button>
           <small>hours</small>
         </div>
         <div class="colon">:</div>
         <div class="digit-group m">
           <button class="step" data-t="minute" data-d="1" aria-label="Minutes up">▲</button>
-          <input id="minuteInput" class="digit m" inputmode="numeric" maxlength="2" placeholder="?" aria-label="Minutes">
+          <div id="minuteBox" class="digit m" aria-label="Minutes"></div>
           <button class="step" data-t="minute" data-d="-1" aria-label="Minutes down">▼</button>
           <small>minutes</small>
         </div>
@@ -222,6 +251,16 @@
   </div>
 </div>
 
+<div class="win" id="win" hidden>
+  <div class="win-card" role="dialog" aria-labelledby="winTitle">
+    <div class="win-cup">🏆</div>
+    <h2 id="winTitle">You won!</h2>
+    <p id="winText"></p>
+    <div class="win-trophies" id="winTrophies"></div>
+    <button class="big primary" id="againBtn">▶ Play again</button>
+  </div>
+</div>
+
 <script>
 (function () {
   'use strict';
@@ -236,11 +275,13 @@
   };
   const COLOR = { hour: '#e63946', minute: '#1d6fd8', minuteSoft: '#e1eeff', ink: '#2b2d42', tick: '#a3a9bd' };
 
-  const state = { hour: 2, minute: 10, mode: 'free', target: null, score: 0 };
+  const STARS_TO_WIN = 5;
+  // stars: this round's stars in the current game; trophies: rounds won since the app was opened
+  const state = { hour: 2, minute: 10, mode: 'free', target: null, stars: 0, trophies: 0 };
 
   const $ = id => document.getElementById(id);
-  const hourInput = $('hourInput');
-  const minuteInput = $('minuteInput');
+  const hourBox = $('hourBox');
+  const minuteBox = $('minuteBox');
   const pad = n => String(n).padStart(2, '0');
   const wrapHour = h => ((h - 1) % 12 + 12) % 12 + 1;   // keeps hours in 1..12
 
@@ -330,7 +371,7 @@
   }
 
   /* ---------- render ---------- */
-  function render(syncInputs) {
+  function render(syncBoxes) {
     hourHand.setAttribute('transform', `rotate(${hourAngle()} ${C} ${C})`);
     minuteHand.setAttribute('transform', `rotate(${minuteAngle()} ${C} ${C})`);
 
@@ -346,7 +387,7 @@
       hourLit[i][2].classList.toggle('lit', litH);
     }
 
-    if (syncInputs) { hourInput.value = state.hour; minuteInput.value = pad(state.minute); }
+    if (syncBoxes) { hourBox.textContent = state.hour; minuteBox.textContent = pad(state.minute); }
   }
 
   /* ---------- dragging the hands ---------- */
@@ -403,38 +444,14 @@
     render(state.mode === 'free');
   }
 
-  /* ---------- digital inputs ---------- */
-  function onTyped(inp, lo, hi, key) {
-    inp.value = inp.value.replace(/\D/g, '').slice(0, 2);
-    if (state.mode !== 'free') return;
-    const v = parseInt(inp.value, 10);
-    if (v >= lo && v <= hi) { state[key] = v; render(false); }
-  }
-  hourInput.addEventListener('input', () => onTyped(hourInput, 1, 12, 'hour'));
-  minuteInput.addEventListener('input', () => onTyped(minuteInput, 0, 59, 'minute'));
-  [hourInput, minuteInput].forEach(inp => {
-    inp.addEventListener('focus', () => inp.select());
-    inp.addEventListener('blur', () => { if (state.mode === 'free') render(true); });
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        step(inp === hourInput ? 'hour' : 'minute', e.key === 'ArrowUp' ? 1 : -1);
-      } else if (e.key === 'Enter') {
-        inp.blur();
-      }
-    });
-  });
-
+  /* ---------- the numbers: ▲ ▼ buttons, or swiping up and down on a number ---------- */
   function step(target, delta) {
     if (state.mode === 'set') return;
     if (state.mode === 'read') {   // in the quiz the buttons change the child's answer, not the clock
-      if (target === 'hour') {
-        const v = parseInt(hourInput.value, 10);
-        hourInput.value = isNaN(v) ? 12 : wrapHour(v + delta);
-      } else {
-        const v = parseInt(minuteInput.value, 10) || 0;
-        minuteInput.value = pad(((v + delta * 5) % 60 + 60) % 60);
-      }
+      const box = target === 'hour' ? hourBox : minuteBox;
+      const v = parseInt(box.textContent, 10);   // NaN while the box still shows "?"
+      if (target === 'hour') box.textContent = isNaN(v) ? (delta > 0 ? 1 : 12) : wrapHour(v + delta);
+      else box.textContent = pad(isNaN(v) ? (delta > 0 ? 0 : 55) : ((v + delta * 5) % 60 + 60) % 60);
       return;
     }
     if (target === 'hour') {
@@ -449,6 +466,27 @@
   }
   document.querySelectorAll('.step').forEach(b =>
     b.addEventListener('click', () => step(b.dataset.t, parseInt(b.dataset.d, 10))));
+
+  // Swiping up on a number makes it bigger, swiping down makes it smaller: one step per SWIPE_STEP pixels.
+  const SWIPE_STEP = 24;
+  [[hourBox, 'hour'], [minuteBox, 'minute']].forEach(([box, target]) => {
+    let lastY = null;
+    box.addEventListener('pointerdown', e => {
+      if (state.mode === 'set') return;
+      e.preventDefault();
+      lastY = e.clientY;
+      box.setPointerCapture(e.pointerId);
+      box.classList.add('swiping');
+    });
+    box.addEventListener('pointermove', e => {
+      if (lastY === null) return;
+      while (lastY - e.clientY >= SWIPE_STEP) { lastY -= SWIPE_STEP; step(target, 1); }
+      while (e.clientY - lastY >= SWIPE_STEP) { lastY += SWIPE_STEP; step(target, -1); }
+    });
+    const endSwipe = () => { lastY = null; box.classList.remove('swiping'); };
+    box.addEventListener('pointerup', endSwipe);
+    box.addEventListener('pointercancel', endSwipe);
+  });
 
   /* ---------- buttons ---------- */
   function speak(text) {
@@ -488,19 +526,57 @@
     r.textContent = text;
     r.className = 'result ' + cls;
   }
+  // A row of 5 stars that fill up as the child gets answers right, plus the trophies won so far.
   function updateScore() {
-    $('score').textContent = state.score ? '⭐'.repeat(Math.min(state.score, 10)) + '  ' + state.score : '';
+    let html = '';
+    for (let i = 0; i < STARS_TO_WIN; i++) html += `<span${i < state.stars ? '' : ' class="empty"'}>⭐</span>`;
+    if (state.trophies) html += `<span class="trophies">🏆 ${state.trophies}</span>`;
+    $('score').innerHTML = html;
   }
+
+  /* ---------- winning a round ---------- */
+  let winTimer = null;
+  function showWin() {
+    const n = state.trophies;
+    $('winText').textContent = `You got ${STARS_TO_WIN} stars. Well done!`;
+    $('winTrophies').textContent = '🏆'.repeat(Math.min(n, 10)) + (n > 10 ? ' ' + n : '');
+    $('win').hidden = false;
+    confetti();
+    $('againBtn').focus();
+  }
+  function hideWin() {
+    clearTimeout(winTimer);
+    $('win').hidden = true;
+  }
+  function confetti() {
+    const colors = [COLOR.hour, COLOR.minute, '#e5a100', '#1f9d55', '#9b5de5'];
+    for (let i = 0; i < 80; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = 2 + Math.random() * 2 + 's';
+      c.style.animationDelay = Math.random() * 0.6 + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 5000);
+    }
+  }
+  $('againBtn').addEventListener('click', () => {
+    hideWin();
+    state.stars = 0;
+    updateScore();
+    nextQuestion();
+  });
+
   function setMode(mode) {
     state.mode = mode;
+    state.stars = 0;   // every game starts a fresh round
+    hideWin();
     document.body.dataset.mode = mode;
     document.body.classList.remove('revealed');
     document.querySelectorAll('.mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     showResult('', '');
-    const locked = mode === 'set';
-    hourInput.readOnly = locked;
-    minuteInput.readOnly = locked;
-    document.querySelectorAll('.step').forEach(b => { b.disabled = locked; });
+    document.querySelectorAll('.step').forEach(b => { b.disabled = mode === 'set'; });
     if (mode === 'free') {
       state.target = null;
       $('prompt').textContent = '';
@@ -517,11 +593,11 @@
     state.target = t;
     if (state.mode === 'read') {
       state.hour = t.h; state.minute = t.m;
-      hourInput.value = ''; minuteInput.value = '';
-      $('prompt').innerHTML = 'Look at the clock. <b>What time is it?</b> Type the numbers, then press Check.';
+      hourBox.textContent = ''; minuteBox.textContent = '';
+      $('prompt').innerHTML = 'Look at the clock. <b>What time is it?</b> Set the numbers with ▲ ▼, then press Check.';
     } else {
       state.hour = 12; state.minute = 0;
-      hourInput.value = t.h; minuteInput.value = pad(t.m);
+      hourBox.textContent = t.h; minuteBox.textContent = pad(t.m);
       $('prompt').innerHTML = `Drag the hands so the clock shows <b class="h">${t.h}</b>:<b class="m">${pad(t.m)}</b>, then press Check.`;
     }
     render(false);
@@ -530,8 +606,8 @@
     if (state.mode === 'free') return;
     let ok;
     if (state.mode === 'read') {
-      const h = parseInt(hourInput.value, 10), m = parseInt(minuteInput.value, 10);
-      if (isNaN(h) || isNaN(m)) { showResult('Type the hour and the minutes first.', 'bad'); return; }
+      const h = parseInt(hourBox.textContent, 10), m = parseInt(minuteBox.textContent, 10);
+      if (isNaN(h) || isNaN(m)) { showResult('Set the hour and the minutes first.', 'bad'); return; }
       ok = h === state.hour && m === state.minute;
     } else {
       ok = state.hour === state.target.h && state.minute === state.target.m;
@@ -542,12 +618,19 @@
         showResult(`That's right, it's ${time}. Press Next for a new one!`, 'ok');
         return;
       }
-      state.score++;
-      updateScore();
+      state.stars++;
       document.body.classList.add('revealed');
       render(true);
       showResult(`⭐ Yes! It's ${time}.`, 'ok');
-      speak(`Yes! It's ${spokenTime(state.hour, state.minute)}.`);
+      const said = `Yes! It's ${spokenTime(state.hour, state.minute)}.`;
+      if (state.stars >= STARS_TO_WIN) {
+        state.trophies++;
+        speak(`${said} You won! Well done!`);
+        winTimer = setTimeout(showWin, 1200);   // let the last star and the "Yes!" show first
+      } else {
+        speak(said);
+      }
+      updateScore();
     } else {
       showResult(state.mode === 'read'
         ? 'Not quite. Look at the short hand first, then the long hand, and try again!'
