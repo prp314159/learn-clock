@@ -123,6 +123,52 @@
     .panel { flex: none; flex-direction: row; align-items: flex-start; width: 100%; max-width: none; }
     .panel .card { flex: 1 1 0; }
   }
+
+  /* Phones: everything on one screen, so the clock and the game buttons are always in view together.
+     The cards are dropped and their contents re-ordered: game buttons, clock, time, game, then the tools. */
+  @media (max-width: 600px) and (orientation: portrait), (max-height: 500px) and (orientation: landscape) {
+    body { padding: 8px 12px; }
+    .panel { gap: 8px; }
+    .panel .card { display: contents; }
+    .card h2, .mode .long { display: none; }
+    .modes { order: -1; flex-wrap: nowrap; gap: 6px; }
+    .tools { order: 1; }
+    button.big { padding: 8px 12px; font-size: .95rem; }
+    button.big.mode { flex: 1 1 0; padding: 9px 4px; white-space: nowrap; }
+
+    /* the time on one row: ▼ 10 ▲ : ▼ 20 ▲ */
+    .digital { margin: 0; gap: 4px; }
+    .digit-group { display: grid; grid-template-areas: "down num up" ". label ."; align-items: center; gap: 2px 5px; }
+    .digit-group .step[data-d="-1"] { grid-area: down; }
+    .digit-group .step[data-d="1"] { grid-area: up; }
+    .digit-group .digit { grid-area: num; }
+    .digit-group small { grid-area: label; text-align: center; font-size: .8rem; }
+    .digit { width: 74px; height: 58px; font-size: 40px; border-width: 3px; border-radius: 12px; }
+    .step { width: 34px; height: 46px; font-size: 15px; }
+    .colon { font-size: 40px; padding-bottom: 20px; }
+
+    .quiz .prompt { font-size: 1rem; margin: 0 0 8px; }
+    .quiz .result { font-size: 1rem; margin: 6px 0 0; }
+    .score { font-size: 1rem; margin-top: 2px; }
+  }
+  /* upright phone: one column, with the clock as big as the space left over allows */
+  @media (max-width: 600px) and (orientation: portrait) {
+    .layout { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
+    .panel { display: contents; }
+    .clock-wrap { flex: none; align-self: center; max-width: none; width: min(100%, max(200px, calc(100vh - 380px))); }
+    @supports (height: 100svh) {
+      .clock-wrap { width: min(100%, max(200px, calc(100svh - 380px))); }
+    }
+  }
+  /* phone on its side: clock on the left, everything else on the right */
+  @media (max-height: 500px) and (orientation: landscape) {
+    .layout { flex-wrap: nowrap; align-items: center; gap: 16px; max-width: none; }
+    .clock-wrap { flex: none; max-width: 50%; width: calc(100vh - 16px); }
+    @supports (height: 100svh) {
+      .clock-wrap { width: calc(100svh - 16px); }
+    }
+    .panel { flex: 1 1 0; max-width: 440px; }
+  }
 </style>
 </head>
 <body data-mode="free">
@@ -149,7 +195,7 @@
           <small>minutes</small>
         </div>
       </div>
-      <div class="row">
+      <div class="row tools">
         <button class="big" id="speakBtn">🔊 Say the time</button>
         <button class="big" id="nowBtn">⏰ Time now</button>
       </div>
@@ -157,10 +203,10 @@
 
     <div class="card quiz">
       <h2>Play</h2>
-      <div class="row">
+      <div class="row modes">
         <button class="big mode active" data-mode="free">✋ Free play</button>
-        <button class="big mode" data-mode="read">👀 What time is it?</button>
-        <button class="big mode" data-mode="set">🕑 Set the clock</button>
+        <button class="big mode" data-mode="read">👀 What time<span class="long"> is it</span>?</button>
+        <button class="big mode" data-mode="set">🕑 Set <span class="long">the </span>clock</button>
       </div>
       <div class="quiz-only">
         <div class="prompt" id="prompt"></div>
