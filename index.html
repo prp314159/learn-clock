@@ -323,7 +323,7 @@
     const pm = pos(a, R.minNum);
     const cm = el('circle', { cx: pm.x, cy: pm.y, r: 18, fill: COLOR.minute, class: 'hl' }, ring);
     const tm = el('text', { x: pm.x, y: pm.y, dy: '0.36em', 'text-anchor': 'middle', class: 'num min' }, ringLabels);
-    tm.textContent = i * 5;
+    tm.textContent = i === 12 ? '00' : i * 5;   // the top reads 00 like the digital clock, never 60
     minLit[i] = [cm, tm];
 
     const ph = pos(a, R.hourNum);
