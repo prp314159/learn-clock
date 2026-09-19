@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn to Read the Clock</title>
+<!-- Lets the iPad "Add to Home Screen" open it full screen, like an app -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Learn Clock">
+<meta name="theme-color" content="#f4f7ff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --hour: #e63946;
+    --hour-soft: #ffe3e6;
+    --minute: #1d6fd8;
+    --minute-soft: #e1eeff;
+    --ink: #2b2d42;
+    --muted: #6b7280;
+    --paper: #ffffff;
+    --bg: #f4f7ff;
+    --ok: #1f9d55;
+    --bad: #d62828;
+    --star: #e5a100;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    padding: 14px;
+    font-family: "Arial Rounded MT Bold", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.35;
+    /* on a touch screen: no grey tap flash, no text selection or pop-up menu on a long press */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input { -webkit-user-select: text; user-select: text; }   /* the number boxes must stay typeable */
+  button, input { touch-action: manipulation; }             /* quick taps never zoom the page */
+  .layout {
+    display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start;
+    max-width: 1120px; margin: 0 auto;
+  }
+  .clock-wrap { flex: 1 1 380px; max-width: 560px; }
+  #clock {
+    width: 100%; height: auto; display: block;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #clock .hand { cursor: grab; }
+  #clock.dragging, #clock.dragging .hand { cursor: grabbing; }
+  #clock .num {
+    font-family: inherit; font-weight: 700; pointer-events: none;
+    paint-order: stroke; stroke: #fff; stroke-width: 5px; stroke-linejoin: round;
+  }
+  #clock .num.min { font-size: 21px; fill: var(--minute); }
+  #clock .num.hour { font-size: 36px; fill: var(--hour); }
+  #clock .num.lit { fill: #fff; stroke: none; }
+  #clock .hl { opacity: 0; transition: opacity .15s; }
+  #clock .hl.on { opacity: 1; }
+
+  .panel { flex: 1 1 320px; max-width: 480px; display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--paper); border-radius: 18px; padding: 14px 16px; box-shadow: 0 4px 14px rgba(43,45,66,.08); }
+  .card h2 {
+    margin: 0 0 8px; font-size: .95rem; color: var(--muted); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+
+  /* digital time */
+  .digital { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .digit-group { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .digit-group small { font-size: .9rem; font-weight: 700; }
+  .digit-group.h small { color: var(--hour); }
+  .digit-group.m small { color: var(--minute); }
+  .digit {
+    width: 112px; height: 92px; padding: 0;
+    font: inherit; font-size: 64px; font-weight: 700; text-align: center;
+    border: 4px solid; border-radius: 16px; background: #fff;
+  }
+  .digit::placeholder { color: #c7cbd8; }
+  .digit:focus { outline: none; box-shadow: 0 0 0 4px rgba(29,111,216,.25); }
+  .digit.h { border-color: var(--hour); color: var(--hour); }
+  .digit.m { border-color: var(--minute); color: var(--minute); }
+  .digit:read-only { background: #f5f6fa; }
+  .colon { font-size: 64px; font-weight: 700; padding-bottom: 28px; }
+  .step {
+    width: 72px; height: 40px; border: 0; border-radius: 10px; background: #eef1f8;
+    font-size: 18px; cursor: pointer; color: var(--ink);
+  }
+  .step:hover { background: #dfe5f3; }
+  .step:disabled { opacity: .3; cursor: default; }
+  b.h { color: var(--hour); }
+  b.m { color: var(--minute); }
+
+  .row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  button.big {
+    font: inherit; font-size: 1rem; font-weight: 700; padding: 10px 16px;
+    border: 0; border-radius: 12px; cursor: pointer; background: #eef1f8; color: var(--ink);
+  }
+  button.big:hover { background: #dfe5f3; }
+  button.big.primary { background: var(--minute); color: #fff; }
+  button.big.primary:hover { background: #185fba; }
+  button.big.active { background: var(--ink); color: #fff; }
+
+  /* quiz */
+  .quiz .prompt { font-size: 1.1rem; margin: 12px 0; text-align: center; min-height: 1.4em; }
+  .quiz .result { text-align: center; font-size: 1.15rem; font-weight: 700; margin: 10px 0 4px; min-height: 1.4em; }
+  .quiz .result.ok { color: var(--ok); }
+  .quiz .result.bad { color: var(--bad); }
+  .score { text-align: center; font-size: 1.2rem; margin-top: 6px; color: var(--star); font-weight: 700; min-height: 1.4em; }
+  body[data-mode="free"] .quiz-only { display: none; }
+
+  /* iPad held upright: a big clock on top and the two cards side by side underneath, all on one screen */
+  @media (orientation: portrait) and (min-width: 700px) {
+    .layout { flex-direction: column; align-items: center; }
+    .clock-wrap { flex: none; max-width: none; width: min(100%, max(360px, calc(100vh - 520px))); }
+    @supports (height: 100svh) {
+      .clock-wrap { width: min(100%, max(360px, calc(100svh - 520px))); }
+    }
+    .panel { flex: none; flex-direction: row; align-items: flex-start; width: 100%; max-width: none; }
+    .panel .card { flex: 1 1 0; }
+  }
+</style>
+</head>
+<body data-mode="free">
+
+<div class="layout">
+  <div class="clock-wrap">
+    <svg id="clock" viewBox="0 0 440 440" aria-label="Teaching clock. Drag the hands to change the time."></svg>
+  </div>
+
+  <div class="panel">
+    <div class="card">
+      <div class="digital">
+        <div class="digit-group h">
+          <button class="step" data-t="hour" data-d="1" aria-label="Hour up">▲</button>
+          <input id="hourInput" class="digit h" inputmode="numeric" maxlength="2" placeholder="?" aria-label="Hours">
+          <button class="step" data-t="hour" data-d="-1" aria-label="Hour down">▼</button>
+          <small>hours</small>
+        </div>
+        <div class="colon">:</div>
+        <div class="digit-group m">
+          <button class="step" data-t="minute" data-d="1" aria-label="Minutes up">▲</button>
+          <input id="minuteInput" class="digit m" inputmode="numeric" maxlength="2" placeholder="?" aria-label="Minutes">
+          <button class="step" data-t="minute" data-d="-1" aria-label="Minutes down">▼</button>
+          <small>minutes</small>
+        </div>
+      </div>
+      <div class="row">
+        <button class="big" id="speakBtn">🔊 Say the time</button>
+        <button class="big" id="nowBtn">⏰ Time now</button>
+      </div>
+    </div>
+
+    <div class="card quiz">
+      <h2>Play</h2>
+      <div class="row">
+        <button class="big mode active" data-mode="free">✋ Free play</button>
+        <button class="big mode" data-mode="read">👀 What time is it?</button>
+        <button class="big mode" data-mode="set">🕑 Set the clock</button>
+      </div>
+      <div class="quiz-only">
+        <div class="prompt" id="prompt"></div>
+        <div class="row">
+          <button class="big primary" id="checkBtn">✓ Check</button>
+          <button class="big" id="showBtn">👁 Show me</button>
+          <button class="big" id="nextBtn">➜ Next</button>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="score" id="score"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('clock');
+  const C = 220;   // centre of the 440x440 view box
+  const R = {      // radii of the various rings, in view box units
+    band: 216, face: 180, minNum: 198,
+    tickOut: 174, tickMin: 166, tick5: 158,
+    hourNum: 128, hourHand: 86, minHand: 150
+  };
+  const COLOR = { hour: '#e63946', minute: '#1d6fd8', minuteSoft: '#e1eeff', ink: '#2b2d42', tick: '#a3a9bd' };
+
+  const state = { hour: 2, minute: 10, mode: 'free', target: null, score: 0 };
+
+  const $ = id => document.getElementById(id);
+  const hourInput = $('hourInput');
+  const minuteInput = $('minuteInput');
+  const pad = n => String(n).padStart(2, '0');
+  const wrapHour = h => ((h - 1) % 12 + 12) % 12 + 1;   // keeps hours in 1..12
+
+  function el(name, attrs, parent) {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  // Point at a given clockwise angle (degrees from 12 o'clock) and radius.
+  function pos(deg, r) {
+    const a = deg * Math.PI / 180;
+    return { x: C + r * Math.sin(a), y: C - r * Math.cos(a) };
+  }
+
+  /* ---------- build the clock face ---------- */
+  const face = el('g', {}, svg);
+  const ring = el('g', { id: 'minuteRing' }, face);
+  el('circle', { cx: C, cy: C, r: R.band, fill: COLOR.minuteSoft, stroke: COLOR.minute, 'stroke-width': 4 }, ring);
+  el('circle', { cx: C, cy: C, r: R.face, fill: '#fff', stroke: COLOR.ink, 'stroke-width': 4 }, face);
+
+  for (let i = 0; i < 60; i++) {
+    const is5 = i % 5 === 0;
+    const p1 = pos(i * 6, R.tickOut);
+    const p2 = pos(i * 6, is5 ? R.tick5 : R.tickMin);
+    el('line', {
+      x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y,
+      stroke: is5 ? COLOR.ink : COLOR.tick, 'stroke-width': is5 ? 4 : 2, 'stroke-linecap': 'round'
+    }, face);
+  }
+
+  // Number labels live in their own layer, drawn after the hands, so a hand never hides the number it points at.
+  const labels = el('g', {}, svg);
+  const ringLabels = el('g', { id: 'minuteRingLabels' }, labels);
+  const minLit = {};   // outer ring: [fill circle, text]
+  const hourLit = {};  // inner ring: [fill circle (hour hand), outline circle (minute hand), text]
+  for (let i = 1; i <= 12; i++) {
+    const a = i * 30;
+    const pm = pos(a, R.minNum);
+    const cm = el('circle', { cx: pm.x, cy: pm.y, r: 18, fill: COLOR.minute, class: 'hl' }, ring);
+    const tm = el('text', { x: pm.x, y: pm.y, dy: '0.36em', 'text-anchor': 'middle', class: 'num min' }, ringLabels);
+    tm.textContent = i * 5;
+    minLit[i] = [cm, tm];
+
+    const ph = pos(a, R.hourNum);
+    const ch = el('circle', { cx: ph.x, cy: ph.y, r: 25, fill: COLOR.hour, class: 'hl' }, face);
+    const co = el('circle', { cx: ph.x, cy: ph.y, r: 25, fill: 'none', stroke: COLOR.minute, 'stroke-width': 4, class: 'hl' }, face);
+    const th = el('text', { x: ph.x, y: ph.y, dy: '0.36em', 'text-anchor': 'middle', class: 'num hour' }, labels);
+    th.textContent = i;
+    hourLit[i] = [ch, co, th];
+  }
+
+  /* ---------- hands ---------- */
+  const hands = el('g', {}, svg);
+  svg.insertBefore(hands, labels);
+  const hourHand = el('g', { id: 'hourHand', class: 'hand' }, hands);
+  el('line', { x1: C, y1: C + 16, x2: C, y2: C - R.hourHand + 14, stroke: COLOR.hour, 'stroke-width': 14, 'stroke-linecap': 'round' }, hourHand);
+  el('polygon', { points: `${C},${C - R.hourHand - 6} ${C - 12},${C - R.hourHand + 20} ${C + 12},${C - R.hourHand + 20}`, fill: COLOR.hour }, hourHand);
+
+  const minuteHand = el('g', { id: 'minuteHand', class: 'hand' }, hands);
+  el('line', { x1: C, y1: C + 18, x2: C, y2: C - R.minHand + 12, stroke: COLOR.minute, 'stroke-width': 9, 'stroke-linecap': 'round' }, minuteHand);
+  el('polygon', { points: `${C},${C - R.minHand - 8} ${C - 10},${C - R.minHand + 18} ${C + 10},${C - R.minHand + 18}`, fill: COLOR.minute }, minuteHand);
+
+  el('circle', { cx: C, cy: C, r: 11, fill: COLOR.ink }, hands);
+  el('circle', { cx: C, cy: C, r: 4, fill: '#fff' }, hands);
+
+  const minuteAngle = () => state.minute * 6;
+  const hourAngle = () => (state.hour % 12) * 30 + state.minute * 0.5;   // the short hand creeps between the hours
+
+  /* ---------- time as text ---------- */
+  const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty'];
+  const HOURS = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+
+  function numWord(n) {
+    if (n < 20) return ONES[n];
+    const o = n % 10;
+    return TENS[Math.floor(n / 10)] + (o ? '-' + ONES[o] : '');
+  }
+  const digits = (h, m) => `${h}:${pad(m)}`;
+  // The time as the speech voice should say it: 3:45 is "three forty-five", 2:05 is "two oh five".
+  function spokenTime(h, m) {
+    const hw = HOURS[h % 12];
+    if (m === 0) return `${hw} o'clock`;
+    return `${hw} ${m < 10 ? 'oh ' : ''}${numWord(m)}`;
+  }
+
+  /* ---------- render ---------- */
+  function render(syncInputs) {
+    hourHand.setAttribute('transform', `rotate(${hourAngle()} ${C} ${C})`);
+    minuteHand.setAttribute('transform', `rotate(${minuteAngle()} ${C} ${C})`);
+
+    // Which number does the long hand point at? (only when it sits exactly on one)
+    const mp = state.minute % 5 === 0 ? (state.minute === 0 ? 12 : state.minute / 5) : 0;
+    for (let i = 1; i <= 12; i++) {
+      const litM = i === mp;
+      const litH = i === state.hour;
+      minLit[i][0].classList.toggle('on', litM);
+      minLit[i][1].classList.toggle('lit', litM);
+      hourLit[i][0].classList.toggle('on', litH);
+      hourLit[i][1].classList.toggle('on', litM);
+      hourLit[i][2].classList.toggle('lit', litH);
+    }
+
+    if (syncInputs) { hourInput.value = state.hour; minuteInput.value = pad(state.minute); }
+  }
+
+  /* ---------- dragging the hands ---------- */
+  function svgPoint(e) {
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  const angleOf = p => (Math.atan2(p.x - C, C - p.y) * 180 / Math.PI + 360) % 360;
+
+  // Distance from a point to the hand drawn at `angle` with length `len`.
+  function distToHand(p, angle, len) {
+    const tip = pos(angle, len);
+    const dx = tip.x - C, dy = tip.y - C;
+    const t = Math.max(0, Math.min(1, ((p.x - C) * dx + (p.y - C) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(p.x - (C + t * dx), p.y - (C + t * dy));
+  }
+
+  let dragging = null;   // 'hour' | 'minute' | null
+
+  svg.addEventListener('pointerdown', e => {
+    if (state.mode === 'read') return;           // the child must read the clock, not move it
+    const p = svgPoint(e);
+    const rad = Math.hypot(p.x - C, p.y - C);
+    if (rad > R.band + 10) return;
+    const dm = distToHand(p, minuteAngle(), R.minHand);
+    const dh = distToHand(p, hourAngle(), R.hourHand);
+    if (dh <= 40 && dh <= dm) dragging = 'hour';
+    else if (dm <= 40) dragging = 'minute';
+    else if (rad > R.hourHand + 20) dragging = 'minute';   // tapping near the edge grabs the long hand
+    else return;
+    e.preventDefault();
+    svg.setPointerCapture(e.pointerId);
+    svg.classList.add('dragging');
+    moveTo(p);
+  });
+  svg.addEventListener('pointermove', e => { if (dragging) moveTo(svgPoint(e)); });
+  const stopDrag = () => { dragging = null; svg.classList.remove('dragging'); };
+  svg.addEventListener('pointerup', stopDrag);
+  svg.addEventListener('pointercancel', stopDrag);
+
+  function moveTo(p) {
+    const a = angleOf(p);
+    if (dragging === 'minute') {
+      const m = Math.round(a / 30) * 5 % 60;   // the long hand jumps 5 minutes at a time
+      const diff = m - state.minute;
+      if (diff < -30) state.hour = wrapHour(state.hour + 1);      // passed 12 going forwards
+      else if (diff > 30) state.hour = wrapHour(state.hour - 1);  // passed 12 going backwards
+      state.minute = m;
+    } else {
+      let h = Math.round((a - state.minute * 0.5) / 30) % 12;
+      state.hour = h <= 0 ? h + 12 : h;
+    }
+    render(state.mode === 'free');
+  }
+
+  /* ---------- digital inputs ---------- */
+  function onTyped(inp, lo, hi, key) {
+    inp.value = inp.value.replace(/\D/g, '').slice(0, 2);
+    if (state.mode !== 'free') return;
+    const v = parseInt(inp.value, 10);
+    if (v >= lo && v <= hi) { state[key] = v; render(false); }
+  }
+  hourInput.addEventListener('input', () => onTyped(hourInput, 1, 12, 'hour'));
+  minuteInput.addEventListener('input', () => onTyped(minuteInput, 0, 59, 'minute'));
+  [hourInput, minuteInput].forEach(inp => {
+    inp.addEventListener('focus', () => inp.select());
+    inp.addEventListener('blur', () => { if (state.mode === 'free') render(true); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        step(inp === hourInput ? 'hour' : 'minute', e.key === 'ArrowUp' ? 1 : -1);
+      } else if (e.key === 'Enter') {
+        inp.blur();
+      }
+    });
+  });
+
+  function step(target, delta) {
+    if (state.mode === 'set') return;
+    if (state.mode === 'read') {   // in the quiz the buttons change the child's answer, not the clock
+      if (target === 'hour') {
+        const v = parseInt(hourInput.value, 10);
+        hourInput.value = isNaN(v) ? 12 : wrapHour(v + delta);
+      } else {
+        const v = parseInt(minuteInput.value, 10) || 0;
+        minuteInput.value = pad(((v + delta * 5) % 60 + 60) % 60);
+      }
+      return;
+    }
+    if (target === 'hour') {
+      state.hour = wrapHour(state.hour + delta);
+    } else {
+      let m = (delta > 0 ? Math.floor(state.minute / 5) + 1 : Math.ceil(state.minute / 5) - 1) * 5;
+      if (m >= 60) { m -= 60; state.hour = wrapHour(state.hour + 1); }
+      else if (m < 0) { m += 60; state.hour = wrapHour(state.hour - 1); }
+      state.minute = m;
+    }
+    render(true);
+  }
+  document.querySelectorAll('.step').forEach(b =>
+    b.addEventListener('click', () => step(b.dataset.t, parseInt(b.dataset.d, 10))));
+
+  /* ---------- buttons ---------- */
+  function speak(text) {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.85;
+    u.lang = 'en-US';
+    speechSynthesis.speak(u);
+  }
+  $('speakBtn').addEventListener('click', () => {
+    const revealed = state.mode === 'free' || document.body.classList.contains('revealed');
+    if (!revealed) { speak(state.mode === 'read' ? 'Look at the clock. What time is it?' : 'Move the hands to show the time.'); return; }
+    speak(spokenTime(state.hour, state.minute));
+  });
+  $('nowBtn').addEventListener('click', () => {
+    if (state.mode !== 'free') setMode('free');
+    const d = new Date();
+    state.hour = d.getHours() % 12 || 12;
+    state.minute = d.getMinutes();
+    render(true);
+  });
+
+  /* ---------- quiz ---------- */
+  function randomTime() {
+    let t;
+    do {
+      t = {
+        h: 1 + Math.floor(Math.random() * 12),
+        m: 5 * Math.floor(Math.random() * 12)
+      };
+    } while (state.target && t.h === state.target.h && t.m === state.target.m || (t.h === 12 && t.m === 0));
+    return t;
+  }
+  function showResult(text, cls) {
+    const r = $('result');
+    r.textContent = text;
+    r.className = 'result ' + cls;
+  }
+  function updateScore() {
+    $('score').textContent = state.score ? '⭐'.repeat(Math.min(state.score, 10)) + '  ' + state.score : '';
+  }
+  function setMode(mode) {
+    state.mode = mode;
+    document.body.dataset.mode = mode;
+    document.body.classList.remove('revealed');
+    document.querySelectorAll('.mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    showResult('', '');
+    const locked = mode === 'set';
+    hourInput.readOnly = locked;
+    minuteInput.readOnly = locked;
+    document.querySelectorAll('.step').forEach(b => { b.disabled = locked; });
+    if (mode === 'free') {
+      state.target = null;
+      $('prompt').textContent = '';
+      render(true);
+    } else {
+      nextQuestion();
+    }
+    updateScore();
+  }
+  function nextQuestion() {
+    document.body.classList.remove('revealed');
+    showResult('', '');
+    const t = randomTime();
+    state.target = t;
+    if (state.mode === 'read') {
+      state.hour = t.h; state.minute = t.m;
+      hourInput.value = ''; minuteInput.value = '';
+      $('prompt').innerHTML = 'Look at the clock. <b>What time is it?</b> Type the numbers, then press Check.';
+    } else {
+      state.hour = 12; state.minute = 0;
+      hourInput.value = t.h; minuteInput.value = pad(t.m);
+      $('prompt').innerHTML = `Drag the hands so the clock shows <b class="h">${t.h}</b>:<b class="m">${pad(t.m)}</b>, then press Check.`;
+    }
+    render(false);
+  }
+  function check() {
+    if (state.mode === 'free') return;
+    let ok;
+    if (state.mode === 'read') {
+      const h = parseInt(hourInput.value, 10), m = parseInt(minuteInput.value, 10);
+      if (isNaN(h) || isNaN(m)) { showResult('Type the hour and the minutes first.', 'bad'); return; }
+      ok = h === state.hour && m === state.minute;
+    } else {
+      ok = state.hour === state.target.h && state.minute === state.target.m;
+    }
+    if (ok) {
+      const time = digits(state.hour, state.minute);
+      if (document.body.classList.contains('revealed')) {   // answer was shown already: confirm, no star
+        showResult(`That's right, it's ${time}. Press Next for a new one!`, 'ok');
+        return;
+      }
+      state.score++;
+      updateScore();
+      document.body.classList.add('revealed');
+      render(true);
+      showResult(`⭐ Yes! It's ${time}.`, 'ok');
+      speak(`Yes! It's ${spokenTime(state.hour, state.minute)}.`);
+    } else {
+      showResult(state.mode === 'read'
+        ? 'Not quite. Look at the short hand first, then the long hand, and try again!'
+        : 'Not quite. Check the short hand and the long hand, then try again!', 'bad');
+    }
+  }
+  function showMe() {
+    if (state.mode === 'free') return;
+    if (state.mode === 'set') { state.hour = state.target.h; state.minute = state.target.m; }
+    document.body.classList.add('revealed');
+    render(true);
+    showResult(`The answer is ${digits(state.hour, state.minute)}.`, '');
+  }
+  document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  $('checkBtn').addEventListener('click', check);
+  $('showBtn').addEventListener('click', showMe);
+  $('nextBtn').addEventListener('click', nextQuestion);
+
+  render(true);
+
+  // Saves the app on the device so it also opens without internet. Only works once it is on a website,
+  // so opening the file straight from the computer carries on as before.
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+})();
+</script>
+</body>
+</html>
