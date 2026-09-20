@@ -176,6 +176,12 @@
     .digit { width: 66px; height: 58px; font-size: 40px; border-width: 3px; border-radius: 12px; }
     .step { width: 44px; height: 58px; font-size: 16px; }
     .colon { font-size: 40px; padding-bottom: 20px; }
+    /* the same step-down for the numbers, so the ▲ ▼ buttons stay fully on screen on the narrowest phones */
+    @media (max-width: 360px) {
+      .digit { width: 54px; height: 54px; font-size: 34px; }
+      .step { width: 34px; height: 54px; }
+      .colon { font-size: 34px; padding-bottom: 18px; }
+    }
 
     .quiz .prompt { font-size: 1rem; margin: 0 0 8px; }
     .quiz .result { font-size: 1rem; margin: 6px 0 0; }
