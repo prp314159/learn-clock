@@ -163,6 +163,8 @@
     .tools { order: 1; }
     button.big { padding: 8px 12px; font-size: .95rem; }
     button.big.mode { flex: 1 1 0; padding: 9px 4px; white-space: nowrap; }
+    /* the three game buttons share one row, so on the narrowest phones their text steps down to fit */
+    @media (max-width: 360px) { button.big.mode { font-size: .82rem; padding: 9px 2px; } }
 
     /* the time on one row: ▼ 10 ▲ : ▼ 20 ▲ */
     .digital { margin: 0; gap: 4px; }
@@ -233,7 +235,7 @@
     <div class="card quiz">
       <h2>Play</h2>
       <div class="row modes">
-        <button class="big mode active" data-mode="free">✋ Free play</button>
+        <button class="big mode active" data-mode="free">✋ Move<span class="long"> the</span> hands</button>
         <button class="big mode" data-mode="read">👀 What time<span class="long"> is it</span>?</button>
         <button class="big mode" data-mode="set">🕑 Set <span class="long">the </span>clock</button>
       </div>
